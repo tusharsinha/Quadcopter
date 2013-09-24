@@ -48,6 +48,7 @@ D1,D0 = range ( 00 = 2g ; 01 = 4g; 10 = 8g; 11 = 16g)
 
 int xaccel = 0,yaccel = 0,zaccel = 0;
 int xoffset = 0, yoffset = 0, zoffset = 0;
+int _buff[8];
 
 int error_code = 0;
 #define ADXL345_READ_ERROR 1 //if less number of bytes
@@ -83,9 +84,9 @@ void initialiseADXL345(){
   int n = 10; //Change n to increase number of samples to average to remove offset
   while(i<=n){
 	readAccel(&xaccel, &yaccel, &zaccel);
-	xoffset = xoffset + (xaccel/n);
-	yoffset = yoffset + (yaccel/n);
-	zoffset = zoffset + (zaccel/n);
+	xoffset += (xaccel/n);
+	yoffset += (yaccel/n);
+	zoffset += (zaccel/n);
   }
   //zoffset correction
   zoffset = zoffset - 512; //for 2g resolution at 10bit
