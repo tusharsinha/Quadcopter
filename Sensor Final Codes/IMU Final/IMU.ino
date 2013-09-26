@@ -59,17 +59,28 @@
 #define GYRO_ZOUT          0x21  // R	SENSOR: Gyro Z 2bytes
 #define PWR_MGM            0x3E  // RW	Power Management
 
+/* -------------------------------------- HMC5883L addresses -------------------------------------- */
+
+#define HMC5883L_ADDR    		0x1E
+#define ConfigurationRegisterA  0x00
+#define ConfigurationRegisterB  0x01
+#define ModeRegister 			0x02
+#define DataRegisterBegin 		0x03
+
 /* ------------------------------ End of Address and bits Deceleration ------------------------------*/
 
-int xgyro = 0, ygyro = 0, zgyro = 0; //gyroscope raw output
-int xaccel = 0, yaccel = 0, zaccel = 0; //accelerometer raw output
-int xoffgyro = 0, yoffgyro = 0, zoffgyro = 0; //stores gyro offset as there is not dedicated register for it
+int xgyro = 0, ygyro = 0, zgyro = 0; //gyroscope output
+int xaccel = 0, yaccel = 0, zaccel = 0; //accelerometer output
+int xmagn = 0, ymagn = 0, zmagn = 0; //magnetometer output
+int xoffgyro = 0, yoffgyro = 0, zoffgyro = 0; //stores gyroscope offset as there is not dedicated register for it
 int xoffset = 0, yoffset = 0, zoffset = 0; //for offset tuning average calculation
+int GainMagn = 1090; //Gain of magnetometer
 int _buff[8]; //used in burst reading
 
 int error_code = 0; //Define error flags here
 #define ADXL345_READ_ERROR 1 //if less number of bytes is read from accelerometer
 #define ITG3200_READ_ERROR 2 //if less number of bytes is read from gyroscope
+#define HMC5883L_READ_ERROR 3 //if less number of bytes is read from magnetometer
 
 bool fastmode false; //enable/disable disable fast mode
 //boolean fastmode true;
@@ -92,10 +103,11 @@ void setup(){
   //might not be the case with DUE
   initialiseADXL345();
   initialiseITG3200();
+  initialiseHMC5883L();
 }
 
 void loop(){
-  readGyro(&xgyro, &ygyro, &zgyro); //read the accelerometer values and store them in variables  x,y,z
+  readGyro(&xgyro, &ygyro, &zgyro); //read the gyroscope values and store them in variables  x,y,z
   Serial.print(xgyro);
   Serial.print(xgyro);
   Serial.println(xgyro);
@@ -103,6 +115,10 @@ void loop(){
   Serial.print(xaccel);
   Serial.print(yaccel);
   Serial.println(zaccel);
+  readMagn(&xmagn, &ymagn, &zmagn); //read the magnetometer values and store them in variables  x,y,z
+  Serial.print(xmagn);
+  Serial.print(ymagn);
+  Serial.println(zmagn);  
   delay(1000);
 }
 
@@ -159,6 +175,54 @@ void readAccel(int *x, int *y, int *z) {
   *y = (((int)_buff[3]) << 8) | _buff[2];
   *z = (((int)_buff[5]) << 8) | _buff[4];
 }
+
+// Initialises Magnetometer
+void initialiseHMC5883L() {
+   writeTo(HMC5883L_ADDR, ConfigurationRegisterA, B01110000);
+   /*
+   D7 - 1/0 have to check
+   D6 D5 - number of readings to be averaged 00 - 1; 01 - 2; 10 - 4; 11 - 8
+   D4 D3 D2 - data output rate 100 - 15Hz 101 -30Hz 110 75hz
+   D1 D0 - 00 default 01 self test +ve 10 self test -ve 11 reserved
+   */
+   writeTo(HMC5883L_ADDR, ConfigurationRegisterB, B00100000); 
+   /* 
+   D7 D6 D5
+   001 - 1.3 Ga gain 1090 default
+	gauss = 0.88regValue = 0x00	m_Scale = 0.73
+	gauss = 1.3 regValue = 0x01 m_Scale = 0.92
+	gauss = 1.9 regValue = 0x02 m_Scale = 1.22
+	gauss = 2.5 regValue = 0x03 m_Scale = 1.52
+	gauss = 4.0 regValue = 0x04	m_Scale = 2.27
+	gauss = 4.7 regValue = 0x05	m_Scale = 2.56
+	gauss = 5.6 regValue = 0x06	m_Scale = 3.03
+	gauss = 8.1 regValue = 0x07 m_Scale = 4.35
+   */
+   writeTo(HMC5883L_ADDR, ModeRegister, B0000000);
+   /*
+   D7 - D2 = 0
+   D1 D0 = 00 - continuous ; 01 - Single measurement mode;
+   */
+}
+
+// Reads the magnetic field into three variable x, y and z
+void readMagn(int *x, int *y, int *z) {
+  readFrom(HMC5883L_ADDR, DataRegisterBegin, 6, _buff); //read the magnetic field data from the HMC5883L
+  // each axis reading comes in 12 bit resolution in 2 bytes.  MOST Significant Byte first!!
+  
+  *x = (((int)_buff[0] << 8) | _buff[1])/GainMagn;
+  *y = (((int)_buff[5] << 8) | _buff[6])/GainMagn; 
+  *z = (((int)_buff[3] << 8) | _buff[4])/GainMagn;
+  
+  heading = atan2(*y, *x);
+  heading += 0.009308;  
+  // Correct for when signs are reversed.
+  if(heading < 0)
+    heading += 2*PI;    
+  // Check for wrap due to addition of declination.
+  if(heading > 2*PI)
+    heading -= 2*PI;
+  }
 
 // Initialises Gyroscope
 void initialiseITG3200() {
