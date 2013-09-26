@@ -144,7 +144,7 @@ void initialiseADXL345() {
   yoffset = (yoffset/n);
   zoffset = (zoffset/n);
   //zoffset correction
-  zoffset = zoffset - 512; //for 2g resolution at 10bit
+  zoffset = zoffset - 256; //for 2g resolution at 10bit
   writeTo(ADXL345_ADDR, ADXL345_OFSX, xoffset);
   writeTo(ADXL345_ADDR, ADXL345_OFSY, yoffset);
   writeTo(ADXL345_ADDR, ADXL345_OFSZ, zoffset);
@@ -153,8 +153,8 @@ void initialiseADXL345() {
 // Reads the acceleration into three variable x, y and z
 void readAccel(int *x, int *y, int *z) {
   readFrom(ADXL345_ADDR, ADXL345_DATAX0, 6, _buff); //read the acceleration data from the ADXL345
-  // each axis reading comes in 10 bit resolution, ie 2 bytes.  Least Significat Byte first!!
-  // thus we are converting both bytes into int
+  // each axis reading comes in 10 bit resolution in 2 bytes.  Least Significat Byte first!!
+  
   *x = (((int)_buff[1]) << 8) | _buff[0];  
   *y = (((int)_buff[3]) << 8) | _buff[2];
   *z = (((int)_buff[5]) << 8) | _buff[4];
@@ -226,10 +226,12 @@ void initialiseITG3200() {
 void readGyro(int *x, int *y, int *z) {
   int x, y, z;
   // x,y,z will contain calibrated integer values from the sensor
-  readFrom(ITG3200_ADDR, GYRO_XOUT, 6, _buff);
-  *x = ((_buff[0] << 8) | _buff[1]);
-  *y = ((_buff[2] << 8) | _buff[3]); 
-  *z = ((_buff[4] << 8) | _buff[5]);
+  readFrom(ITG3200_ADDR, GYRO_XOUT, 6, _buff);  //read the gyroscope data from ITG3200
+  // each axis reading comes in 16 bit resolution in 2 bytes.  Most Significat Byte first!!
+  
+  *x = (((int)_buff[0] << 8) | _buff[1]);
+  *y = (((int)_buff[2] << 8) | _buff[3]); 
+  *z = (((int)_buff[4] << 8) | _buff[5]);
   
   *x =  (x / 14.375) - xoffgyro;
   *y =  (y / 14.375) - yoffgyro;

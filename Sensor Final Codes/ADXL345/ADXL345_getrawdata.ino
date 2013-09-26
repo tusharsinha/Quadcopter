@@ -89,7 +89,7 @@ void initialiseADXL345(){
 	zoffset += (zaccel/n);
   }
   //zoffset correction
-  zoffset = zoffset - 512; //for 2g resolution at 10bit
+  zoffset = zoffset - 256; //for 2g resolution at 10bit
   writeTo(ADXL345_ADDR, ADXL345_OFSX, xoffset);
   writeTo(ADXL345_ADDR, ADXL345_OFSY, yoffset);
   writeTo(ADXL345_ADDR, ADXL345_OFSZ, zoffset);
