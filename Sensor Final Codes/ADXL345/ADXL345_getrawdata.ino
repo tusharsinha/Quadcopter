@@ -15,15 +15,6 @@
 #define ADXL345_BW_RATE 0x2c		 // Data rate and power mode control D4 = lowpower; D3,2,1,0 - for bit rates defined below)
 #define ADXL345_POWER_CTL 0x2d		 // Power saving features control
 #define ADXL345_DATA_FORMAT 0x31	 
-/* not separating bits because we need to write whole registers
-D7 = selftest 0 - disable
-D6 = SPI bit 1 sets to 3 wire and 0 to 4 wire
-D5 = interrupt invert 0 is active HIGH
-D4 = 0
-D3 = Full resolution bit 10 bit if 0 other wise max bits corresponding to resolution selected
-D4 = Justify bit set the order of bit stream right justified = 0
-D1,D0 = range ( 00 = 2g ; 01 = 4g; 10 = 8g; 11 = 16g)
-*/
 #define ADXL345_DATAX0 0x32 		// 0x32 - 0x37 is output depending on Data format bit
 #define ADXL345_DATAX1 0x33
 #define ADXL345_DATAY0 0x34
@@ -34,7 +25,7 @@ D1,D0 = range ( 00 = 2g ; 01 = 4g; 10 = 8g; 11 = 16g)
 #define ADXL345_FIFO_STATUS 0x39	// FIFO status
 /*will change default FIFO Modes if needed presently no change*/
 /*Default data format 000000xx*/
-/* ------ other definations Pins,bits ------ */
+/* ------ other definitions Pins,bits ------ */
 #define ADXL345_BW_1600 0xF // 1111
 #define ADXL345_BW_800  0xE // 1110
 #define ADXL345_BW_400  0xD // 1101  
@@ -80,6 +71,15 @@ void initialiseADXL345(){
   writeTo(ADXL345_ADDR, ADXL345_BW_RATE, ADXL345_BW_1600); //select resolution here (1600,800,400,200,100,50,25,12,6,3)
   // note - if you change resolution change z offset correction accordingly
   writeTo(ADXL345_ADDR, ADXL345_DATA_FORMAT, B00000001); //select range D1,D0 = range ( 00 = 2g ; 01 = 4g; 10 = 8g; 11 = 16g)
+  /* not separating bits because we need to write whole registers
+  D7 = self test 0 - disable
+  D6 = SPI bit 1 sets to 3 wire and 0 to 4 wire
+  D5 = interrupt invert 0 is active HIGH
+  D4 = 0
+  D3 = Full resolution bit 10 bit if 0 other wise max bits corresponding to resolution selected
+  D4 = Justify bit set the order of bit stream right justified = 0
+  D1,D0 = range ( 00 = 2g ; 01 = 4g; 10 = 8g; 11 = 16g)
+  */
   int i = 1;
   int n = 10; //Change n to increase number of samples to average to remove offset
   while(i<=n){

@@ -21,9 +21,8 @@
 #define PWR_MGM            0x3E  // RW	Power Management
 
 int xgyro = 0, ygyro = 0, zgyro = 0;
-float gains[3]; 
-int offsets[3];
-float polarities[3];
+int _Xoffset = 0, _Yoffset = 0, _Zoffset = 0;
+
 int _buff[8];
 bool fastmode false; //enable disable fast mode
 //boolean fastmode true;
@@ -43,13 +42,13 @@ void setup(){
   }
   //need to check few things
   //wire automatically pulls up on start
-  //might not be the case with due
+  //might not be the case with DUE
   
   initialiseITG3200();
 }
 
 void loop(){
-  readGyro(&xgyro, &ygyro, &zgyro,); //read the accelerometer values and store them in variables  x,y,z
+  readGyro(&xgyro, &ygyro, &zgyro); //read the accelerometer values and store them in variables  x,y,z
   Serial.print(xgyro);
   Serial.print(xgyro);
   Serial.println(xgyro);  
@@ -98,42 +97,18 @@ void initialiseITG3200() {
   D2 = Enable interrupt when device is ready
   D0 = Enable interrupt when data is available
   */
-  delay(GYROSTART_UP_DELAY);  // startup delay
-  setGains(1.0,1.0,1.0);
-  setRevPolarity(0,0,0);
-  zeroCalibrate(10,10);
-}
-
-void setGains(float _Xgain, float _Ygain, float _Zgain) {
-  gains[0] = _Xgain;
-  gains[1] = _Ygain;
-  gains[2] = _Zgain;
-}
-
-void setOffsets(int _Xoffset, int _Yoffset, int _Zoffset) {
-  offsets[0] = _Xoffset;
-  offsets[1] = _Yoffset;
-  offsets[2] = _Zoffset;
-}
-
-void setRevPolarity(bool _Xpol, bool _Ypol, bool _Zpol) {
-  polarities[0] = _Xpol ? -1 : 1;
-  polarities[1] = _Ypol ? -1 : 1;
-  polarities[2] = _Zpol ? -1 : 1;
-}
-
-void zeroCalibrate(unsigned int totSamples, unsigned int sampleDelayMS) {
-  int xyz[3]; 
-  float tmpOffsets[] = {0,0,0};
-
-  for (int i = 0;i < totSamples;i++){
+  delay(GYROSTART_UP_DELAY);  // start up delay
+  
+  for (int i = 0;i < 10;i++){
     delay(sampleDelayMS);
-    readGyro(xyz);
-    tmpOffsets[0] += xyz[0]/ totSamples;
-    tmpOffsets[1] += xyz[1]/ totSamples;
-    tmpOffsets[2] += xyz[2]/ totSamples;  
+    readGyro(&xgyro, &ygyro, &zgyro);
+    _Xoffset += xgyro;
+    _Yoffset += ygyro;
+    _Zoffset += zgyro;  
   }
-  setOffsets(tmpOffsets[0], tmpOffsets[1], tmpOffsets[2]);
+  _Xoffset = _Xoffset/10;
+  _Yoffset = _Yoffset/10
+  _Zoffset = _Zoffset/10;
 }
 
 // Reads the angular acceleration into three variable x, y and z
@@ -145,12 +120,9 @@ void readGyro(int *x, int *y, int *z) {
   *_GyroY = ((_buff[2] << 8) | _buff[3]); 
   *_GyroZ = ((_buff[4] << 8) | _buff[5]);
   
-  *_GyroX =  x / 14.375 * polarities[0] * gains[0];
-  *_GyroY =  y / 14.375 * polarities[1] * gains[1];
-  *_GyroZ =  z / 14.375 * polarities[2] * gains[2];
-  *_GyroX -= offsets[0];
-  *_GyroY -= offsets[1];
-  *_GyroZ -= offsets[2];
+  *_GyroX =  (x / 14.375) - _Xoffset;
+  *_GyroY =  (y / 14.375) - _Yoffset;
+  *_GyroZ =  (z / 14.375) - _Zoffset;
 }
 
 
