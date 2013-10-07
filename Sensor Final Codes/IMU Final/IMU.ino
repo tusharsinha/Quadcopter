@@ -27,18 +27,6 @@
 /*will change default FIFO Modes if needed presently no change*/
 /*Default data format 000000xx*/
 
-/* ------ other definitions Pins,bits ------ */
-#define ADXL345_BW_1600 0xF // 1111
-#define ADXL345_BW_800  0xE // 1110
-#define ADXL345_BW_400  0xD // 1101  
-#define ADXL345_BW_200  0xC // 1100
-#define ADXL345_BW_100  0xB // 1011  
-#define ADXL345_BW_50   0xA // 1010 
-#define ADXL345_BW_25   0x9 // 1001 
-#define ADXL345_BW_12   0x8 // 1000 
-#define ADXL345_BW_6    0x7 // 0111
-#define ADXL345_BW_3    0x6 // 0110
-
 /* -------------------------------------- ITG3200 addresses -------------------------------------- */
 
 #define ITG3200_ADDR  0x69
@@ -67,15 +55,18 @@
 #define ModeRegister 			0x02
 #define DataRegisterBegin 		0x03
 
-/* ------------------------------ End of Address and bits Deceleration ------------------------------*/
+/* ---------------------------------- End of Address Deceleration -----------------------------------*/
 
-int xgyro = 0, ygyro = 0, zgyro = 0; //gyroscope output
-int xaccel = 0, yaccel = 0, zaccel = 0; //accelerometer output
-int xmagn = 0, ymagn = 0, zmagn = 0; //magnetometer output
-int xoffgyro = 0, yoffgyro = 0, zoffgyro = 0; //stores gyroscope offset as there is not dedicated register for it
-int xoffset = 0, yoffset = 0, zoffset = 0; //for offset tuning average calculation
+int gyro_raw[] = {0,0,0}; //gyroscope output
+float gyro_final[] = {0,0,0};
+int accel_raw[] = {0,0,0}; //accelerometer output
+float accel_final[] = {0,0,0};
+int magn_raw[] = {0,0,0}; //magnetometer output
+float magn_final[] = {0,0,0};
+int magn_offset[] = {0,0,0} //stores gyroscope offset as there is not dedicated register for it
+int offset[] = {0,0,0}; //for offset tuning average calculation
 int GainMagn = 1090; //Gain of magnetometer
-int _buff[8]; //used in burst reading
+int _buff[6]; //used in burst reading
 
 int error_code = 0; //Define error flags here
 #define ADXL345_READ_ERROR 1 //if less number of bytes is read from accelerometer
@@ -99,26 +90,25 @@ void setup(){
 	*/
   }
   //need to check few things
-  //wire automatically pulls up on start
-  //might not be the case with DUE
+  
   initialiseADXL345();
   initialiseITG3200();
   initialiseHMC5883L();
 }
 
 void loop(){
-  readGyro(&xgyro, &ygyro, &zgyro); //read the gyroscope values and store them in variables  x,y,z
-  Serial.print(xgyro);
-  Serial.print(xgyro);
-  Serial.println(xgyro);
-  readAccel(&xaccel, &yaccel, &zaccel); //read the accelerometer values and store them in variables  x,y,z
-  Serial.print(xaccel);
-  Serial.print(yaccel);
-  Serial.println(zaccel);
-  readMagn(&xmagn, &ymagn, &zmagn); //read the magnetometer values and store them in variables  x,y,z
-  Serial.print(xmagn);
-  Serial.print(ymagn);
-  Serial.println(zmagn);  
+  readGyro(gyro_final,gyro_raw); //read the gyroscope values and store them in variables  x,y,z
+  Serial.print(gyro_final[0]);
+  Serial.print(gyro_final[1]);
+  Serial.println(gyro_final[2]);
+  readAccel(accel_final,accel_raw); //read the accelerometer values and store them in variables  x,y,z
+  Serial.print(accel_final[0]);
+  Serial.print(accel_final[1]);
+  Serial.println(accel_final[2]);
+  readMagn(magn_final,magn_raw); //read the magnetometer values and store them in variables  x,y,z
+  Serial.print(magn_final[0]);
+  Serial.print(magn_final[1]);
+  Serial.println(magn_final[2]);  
   delay(1000);
 }
 
@@ -134,7 +124,20 @@ void initialiseADXL345() {
   D1, D0 = Wakeup
   8 means only measure mode
   */
-  writeTo(ADXL345_ADDR, ADXL345_BW_RATE, ADXL345_BW_100); //select bandwidth and transfer rate here (1600,800,400,200,100,50,25,12,6,3)
+  writeTo(ADXL345_ADDR, ADXL345_BW_RATE, ADXL345_BW_100);
+  /*
+  ADXL345_BW_1600 0xF // 1111
+  ADXL345_BW_800  0xE // 1110
+  ADXL345_BW_400  0xD // 1101  
+  ADXL345_BW_200  0xC // 1100
+  ADXL345_BW_100  0xB // 1011  
+  ADXL345_BW_50   0xA // 1010 
+  ADXL345_BW_25   0x9 // 1001 
+  ADXL345_BW_12   0x8 // 1000 
+  ADXL345_BW_6    0x7 // 0111
+  ADXL345_BW_3    0x6 // 0110
+  */
+  
   // note - if you change resolution change z offset correction accordingly
   writeTo(ADXL345_ADDR, ADXL345_DATA_FORMAT, B00000001); //select range D1,D0 = range ( 00 = 2g ; 01 = 4g; 10 = 8g; 11 = 16g)
   /* 
