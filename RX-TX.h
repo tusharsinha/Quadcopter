@@ -1,3 +1,15 @@
+/*
+UK will see how to connect the receiver to different pins on the ardiuno (Prob. will need 4 pins)
+Also, look for how to get varying pulse width from the receiver needed for analogue input using FHSS...
+Till now, we know only 3 types of inputs given...
+FYI, the outputs are directly proportional to the width when the pulse is high..
+
+I have to just convert the output into proper format
+
+*/
+
+
+
 // Youtube Video for Servos : http://www.youtube.com/watch?v=BfMfysmfoNM
 // MultiChannels
 //
