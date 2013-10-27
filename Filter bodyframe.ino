@@ -1,5 +1,3 @@
-#include math.h
-
 float accel_final[3];
 float gyro_final[3];
 float magn_final[3];
@@ -17,7 +15,7 @@ unsigned long int time_gyroPoll;
 unsigned long int time_prev_gyroPoll;
 float dt;  //int?
 float thrust; // final
-const float compFilt_weight; // set weight
+const float compFilt_weight = 1.0; // set weight
 const float gravity = 9.8;
 float roll_x;
 float pitch_y;
@@ -25,7 +23,7 @@ void accel_to_zenith(float a[3])
 {
 	zenith_accel[0] = a[0];
 	zenith_accel[1] = a[1];
-	zenith_accel[2] = sqrt(gravity*gravity - (zenith_accel[0]*zenith_accel[0] + zenith_accel[1]*zenith_accel[1]);
+	zenith_accel[2] = sqrt(gravity*gravity - (zenith_accel[0]*zenith_accel[0] + zenith_accel[1]*zenith_accel[1]));
 }
 
 void magn_to_north(float m[3])
@@ -62,9 +60,9 @@ void comp_filter()
 	zenith[1] = compFilt_weight*zenith_accel[1] + (1 - compFilt_weight)*zenith_gyro[1];
 	zenith[2] = compFilt_weight*zenith_accel[2] + (1 - compFilt_weight)*zenith_gyro[2];
 	
-	north_avg[0] = compFilt_weight*north_accel[0] + (1 - compFilt_weight)*north_gyro[0];
-    north_avg[1] = compFilt_weight*north_accel[1] + (1 - compFilt_weight)*north_gyro[1];
-    north_avg[2] = compFilt_weight*north_accel[2] + (1 - compFilt_weight)*north_gyro[2];
+	north_avg[0] = compFilt_weight*north_magn[0] + (1 - compFilt_weight)*north_gyro[0];
+    north_avg[1] = compFilt_weight*north_magn[1] + (1 - compFilt_weight)*north_gyro[1];
+    north_avg[2] = compFilt_weight*north_magn[2] + (1 - compFilt_weight)*north_gyro[2];
 }
 
 void get_West()
@@ -74,7 +72,7 @@ void get_West()
 	west[2] = zenith[0]*north_avg[1] - zenith[1]*north_avg[0];
 }
 
-void normalize(v[3])
+void normalize(float v[3])
 {
 	float v_magnitude = sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
 	v[0] = v[0]/v_magnitude;
@@ -91,20 +89,20 @@ void correct_north()
 
 void get_Pitch()
 {
-	pitch_y=atan(zenith[1]/sqrt(north[1]^2 + west[1]^2);
+	pitch_y=atan(zenith[1]/sqrt(north[1]*north[1] + west[1]*west[1]));
 }
 
 
 void get_Roll()
 {
-	roll_x = atan(zenith[0]/sqrt(north[0]^2 + west[0]^2);
+	roll_x = atan(zenith[0]/sqrt(north[0]*north[0] + west[0]*west[0]));
 }
-void get_Thrust()
+void get_Thrust(float a[3])
 {
 		thrust = a[2] - zenith_accel[2];
 }
 
-void main(float a[3], float g[3], float m[3]) //input parameters accel data, gyro data, magno data
+void main_1(float a[3], float g[3], float m[3]) //input parameters accel data, gyro data, magno data
 {
 	accel_to_zenith(a);
 	magn_to_north(m);
@@ -115,7 +113,12 @@ void main(float a[3], float g[3], float m[3]) //input parameters accel data, gyr
 	normalize(zenith);
 	normalize(west);
 	normalize(north);
-	get_Pitch // final op stored in global variables
+	get_Pitch(); // final op stored in global variables
 	get_Roll(); // final op global variable
-	get_Thrust(); //final op global var
+	get_Thrust(a); //final op global var
+}
+void setup() {
+}
+
+void loop() {
 }

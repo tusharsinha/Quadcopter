@@ -57,30 +57,37 @@
 
 /* ---------------------------------- End of Address Deceleration -----------------------------------*/
 
+// 1 - x axis ; 2 - y axis ; 3 - z axis
+
 int gyro_raw[] = {0,0,0}; //gyroscope output
 float gyro_final[] = {0,0,0};
+float gyro_offset[] = {0,0,0}; //stores gyroscope offset as there is not dedicated register for it
+
 int accel_raw[] = {0,0,0}; //accelerometer output
-float accel_final[] = {0,0,0};
+float accel_final[] = {0,0,0}; //in g
+
 int magn_raw[] = {0,0,0}; //magnetometer output
 float magn_final[] = {0,0,0};
-int magn_offset[] = {0,0,0} //stores gyroscope offset as there is not dedicated register for it
-int offset[] = {0,0,0}; //for offset tuning average calculation
+float heading = 0;
 int GainMagn = 1090; //Gain of magnetometer
-int _buff[6]; //used in burst reading
+
+float offset[] = {0,0,0}; //for offset tuning average calculation
+
+byte _buff[6]; //used in burst reading
 
 int error_code = 0; //Define error flags here
 #define ADXL345_READ_ERROR 1 //if less number of bytes is read from accelerometer
 #define ITG3200_READ_ERROR 2 //if less number of bytes is read from gyroscope
 #define HMC5883L_READ_ERROR 3 //if less number of bytes is read from magnetometer
 
-bool fastmode false; //enable/disable disable fast mode
+//boolean fastmode = false; //enable/disable disable fast mode
 //boolean fastmode true;
 
 void setup(){
   Serial.begin(9600);
   Wire.begin();
-  if(fastmode) { // switch to 400KHz I2C
-    TWBR = ((16000000L / 400000L) - 16) / 2; 
+  //if(fastmode) { // switch to 400KHz I2C
+  //  TWBR = ((16000000L / 400000L) - 16) / 2; 
 	/*
 	TWBR = ((F_CPU / TWI_FREQ) - 16) / 2
 	SCL frequency = CPU_FREQUENCY / (16 + 2(TWBR) * (PrescalerValue))
@@ -88,7 +95,7 @@ void setup(){
 	But if we change TWBR to 12 we get:
 	16000000 / (16 + 2 * 12) = 400000
 	*/
-  }
+  //}
   //need to check few things
   
   initialiseADXL345();
@@ -97,15 +104,15 @@ void setup(){
 }
 
 void loop(){
-  readGyro(gyro_final,gyro_raw); //read the gyroscope values and store them in variables  x,y,z
+  readGyro(); //read the gyroscope values and store them in variables  x,y,z
   Serial.print(gyro_final[0]);
   Serial.print(gyro_final[1]);
   Serial.println(gyro_final[2]);
-  readAccel(accel_final,accel_raw); //read the accelerometer values and store them in variables  x,y,z
+  readAccel(); //read the accelerometer values and store them in variables  x,y,z
   Serial.print(accel_final[0]);
   Serial.print(accel_final[1]);
   Serial.println(accel_final[2]);
-  readMagn(magn_final,magn_raw); //read the magnetometer values and store them in variables  x,y,z
+  readMagn(); //read the magnetometer values and store them in variables  x,y,z
   Serial.print(magn_final[0]);
   Serial.print(magn_final[1]);
   Serial.println(magn_final[2]);  
@@ -124,7 +131,7 @@ void initialiseADXL345() {
   D1, D0 = Wakeup
   8 means only measure mode
   */
-  writeTo(ADXL345_ADDR, ADXL345_BW_RATE, ADXL345_BW_100);
+  writeTo(ADXL345_ADDR, ADXL345_BW_RATE, B1011);
   /*
   ADXL345_BW_1600 0xF // 1111
   ADXL345_BW_800  0xE // 1110
@@ -152,31 +159,34 @@ void initialiseADXL345() {
   int i = 1;
   int n = 10; //Change n to increase number of samples to average to remove offset
   while(i<=n){
-	readAccel(&xaccel, &yaccel, &zaccel);
-	xoffset += xaccel;
-	yoffset += yaccel;
-	zoffset += zaccel;
+	readAccel();
+	offset[1] += accel_raw[1];
+	offset[2] += accel_raw[2];
+	offset[3] += accel_raw[3];
 	i++;
 	delay(10);
   }
-  xoffset = (xoffset/n);
-  yoffset = (yoffset/n);
-  zoffset = (zoffset/n);
+  offset[1] = (offset[1]/n);
+  offset[2] = (offset[2]/n);
+  offset[3] = (offset[3]/n);
   //zoffset correction
-  zoffset = zoffset - 256; //for 2g resolution at 10bit
-  writeTo(ADXL345_ADDR, ADXL345_OFSX, xoffset);
-  writeTo(ADXL345_ADDR, ADXL345_OFSY, yoffset);
-  writeTo(ADXL345_ADDR, ADXL345_OFSZ, zoffset);
+  offset[3] = offset[3] - 256; //for 2g resolution at 10bit
+  writeTo(ADXL345_ADDR, ADXL345_OFSX, offset[1]);
+  writeTo(ADXL345_ADDR, ADXL345_OFSY, offset[2]);
+  writeTo(ADXL345_ADDR, ADXL345_OFSZ, offset[3]);
 }
 
 // Reads the acceleration into three variable x, y and z
-void readAccel(int *x, int *y, int *z) {
+void readAccel() {
   readFrom(ADXL345_ADDR, ADXL345_DATAX0, 6, _buff); //read the acceleration data from the ADXL345
   // each axis reading comes in 10 bit resolution in 2 bytes.  Least Significat Byte first!!
   
-  *x = (((int)_buff[1]) << 8) | _buff[0];  
-  *y = (((int)_buff[3]) << 8) | _buff[2];
-  *z = (((int)_buff[5]) << 8) | _buff[4];
+  accel_raw[1] = (((int)_buff[1] << 8) | _buff[0]);  
+  accel_raw[2] = (((int)_buff[3] << 8) | _buff[2]);
+  accel_raw[3] = (((int)_buff[5] << 8) | _buff[4]);
+  accel_final[1] = accel_raw[1]/256;
+  accel_final[2] = accel_raw[2]/256;
+  accel_final[3] = accel_raw[3]/256;
 }
 
 // Initialises Magnetometer
@@ -209,15 +219,19 @@ void initialiseHMC5883L() {
 }
 
 // Reads the magnetic field into three variable x, y and z
-void readMagn(int *x, int *y, int *z) {
+void readMagn() {
   readFrom(HMC5883L_ADDR, DataRegisterBegin, 6, _buff); //read the magnetic field data from the HMC5883L
   // each axis reading comes in 12 bit resolution in 2 bytes.  MOST Significant Byte first!!
   
-  *x = (((int)_buff[0] << 8) | _buff[1])/GainMagn;
-  *y = (((int)_buff[5] << 8) | _buff[6])/GainMagn; 
-  *z = (((int)_buff[3] << 8) | _buff[4])/GainMagn;
+  magn_raw[1] = (((int)_buff[0] << 8) | _buff[1]);
+  magn_raw[2] = (((int)_buff[5] << 8) | _buff[6]); 
+  magn_raw[3] = (((int)_buff[3] << 8) | _buff[4]);
   
-  heading = atan2(*y, *x);
+  magn_final[1] = magn_raw[1]/GainMagn;
+  magn_final[2] = magn_raw[2]/GainMagn;
+  magn_final[3] = magn_raw[3]/GainMagn;
+  
+  heading = atan2(magn_raw[2], magn_raw[1]);
   heading += 0.009308;  
   // Correct for when signs are reversed.
   if(heading < 0)
@@ -273,36 +287,32 @@ void initialiseITG3200() {
   delay(GYROSTART_UP_DELAY);  // start up delay
   int i = 1;
   int n = 10; //Change n to increase number of samples to average to remove offset
-  xoffset = 0;
-  yoffset = 0;
-  zoffset = 0;
   while(i<=n){
-    readGyro(&xgyro, &ygyro, &zgyro);
-    xoffset += xgyro;
-    yoffset += ygyro;
-    zoffset += zgyro; 
+    readGyro();
+    offset[1] += gyro_raw[1];
+    offset[2] += gyro_raw[2];
+    offset[3] += gyro_raw[3]; 
 	i++;
 	delay(10);	
   }
-  xoffgyro = xoffset/n;
-  yoffgyro = yoffset/n;
-  zoffgyro = zoffset/n;
+  gyro_offset[1] = offset[1]/n;
+  gyro_offset[2] = offset[2]/n;
+  gyro_offset[3] = offset[3]/n;
 }
 
 // Reads the angular acceleration into three variable x, y and z
-void readGyro(int *x, int *y, int *z) {
-  int x, y, z;
-  // x,y,z will contain calibrated integer values from the sensor
+void readGyro() {
+  
   readFrom(ITG3200_ADDR, GYRO_XOUT, 6, _buff);  //read the gyroscope data from ITG3200
   // each axis reading comes in 16 bit resolution in 2 bytes.  Most Significat Byte first!!
   
-  *x = (((int)_buff[0] << 8) | _buff[1]);
-  *y = (((int)_buff[2] << 8) | _buff[3]); 
-  *z = (((int)_buff[4] << 8) | _buff[5]);
+  gyro_raw[1] = (((int)_buff[0] << 8) | _buff[1]);
+  gyro_raw[2] = (((int)_buff[2] << 8) | _buff[3]); 
+  gyro_raw[3] = (((int)_buff[4] << 8) | _buff[5]);
   
-  *x =  (x / 14.375) - xoffgyro;
-  *y =  (y / 14.375) - yoffgyro;
-  *z =  (z / 14.375) - zoffgyro;
+  gyro_final[1] =  ((gyro_raw[1] - gyro_offset[1])/ 14.375);
+  gyro_final[2] =  ((gyro_raw[2] - gyro_offset[2])/ 14.375);
+  gyro_final[3] =  ((gyro_raw[3] - gyro_offset[3])/ 14.375);
 }
 
 // Writes val to address register on device
