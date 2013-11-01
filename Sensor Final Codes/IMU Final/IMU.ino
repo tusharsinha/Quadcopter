@@ -2,7 +2,7 @@
 
 /* -------------------------------------- ADXL345 addresses -------------------------------------- */
 
-#define ADXL345_ADDR 0x1D 
+#define ADXL345_ADDR 0x53 
 // 0x1D - ADXL345 address when ALT is connected to HIGH
 // 0x53 - ADXL345 address when ALT is connected to LOW
 
@@ -29,7 +29,7 @@
 
 /* -------------------------------------- ITG3200 addresses -------------------------------------- */
 
-#define ITG3200_ADDR  0x69
+#define ITG3200_ADDR  0x68
 //	AD0=1 0x69 I2C address when AD0 is connected to HIGH (VCC) - default for sparkfun breakout
 //	AD0=0 0x68 I2C address when AD0 is connected to LOW (GND)
 //  The LSB bit of the 7 bit address is determined by the logic level on pin 9. 
@@ -86,18 +86,17 @@ int error_code = 0; //Define error flags here
 void setup(){
   Serial.begin(9600);
   Wire.begin();
-  //if(fastmode) { // switch to 400KHz I2C
-  //  TWBR = ((16000000L / 400000L) - 16) / 2; 
+  /*if(fastmode) { // switch to 400KHz I2C
+    TWBR = ((16000000L / 400000L) - 16) / 2; 
 	/*
 	TWBR = ((F_CPU / TWI_FREQ) - 16) / 2
 	SCL frequency = CPU_FREQUENCY / (16 + 2(TWBR) * (PrescalerValue))
 	16000000 / (16 + 2 * 72) = 100000
 	But if we change TWBR to 12 we get:
 	16000000 / (16 + 2 * 12) = 400000
-	*/
-  //}
-  //need to check few things
-  
+	
+  }
+  need to check few things*/  
   initialiseADXL345();
   initialiseITG3200();
   initialiseHMC5883L();

@@ -28,78 +28,153 @@ try:
     tcpobj = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     tcpobj.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 except socket.error:
-    print 'Failed to create socket'
+    print ('Failed to create socket')
     sys.exit()
 try:
 	tcpobj.connect( ('127.0.0.1', 9894) )
 	tcpobj.send("resume\n")
 except:
-	print 'tcp object error'
+	print ('tcp object error')
 	sys.exit()
 udpobj.bind( ('', 9891) )
 
-sim_time=0
+_time=0
+prev_time=0
+sum = 0
+
+pitch_error = pitch_integral = pitch_derivative = pitch_proportional = pitch_prev_error = pitch_PIDsum =0
+roll_error = roll_integral = roll_derivative = roll_proportional = roll_prev_error = roll_PIDsum = 0
+pitch_rate_error = pitch_rate_integral = pitch_rate_derivative = pitch_rate_proportional = pitch_rate_prev_error = pitch_rate_PIDsum = 0
+roll_rate_error = roll_rate_integral = roll_rate_derivative = roll_rate_proportional = roll_rate_prev_error = roll_rate_PIDsum = 0
+yaw_rate_error = yaw_rate_integral = yaw_rate_derivative = yaw_rate_proportional = yaw_rate_prev_error = yaw_rate_PIDsum = 0
+thrust_error = thrust_integral = thrust_derivative = thrust_proportional = thrust_prev_error = thrust_PIDsum = 0
+
+pitch_setpoint=0
+roll_setpoint=0
+yaw_rate_setpoint=0
+thrust_setpoint=0    #altitude
+
 while (1):
 	rcv, addr = udpobj.recvfrom(1024)
 	data=rcv.split(",")
-	sim_time=float(data[0])
+	_time=float(data[0])
+	rollv=float(data[4])
+	pitchv=float(data[5])
+	yawv=float(data[6])
 	roll=float(data[10])*(180/np.pi)
 	pitch=float(data[11])*(180/np.pi)
 	yaw=float(data[13])*(180/np.pi)
 	alt=float(data[15])
 	vc=float(data[17])
 	hdg=float(data[20])*(180/np.pi)
-	hdg_sp = 45.0
-	roll_sp = 0.0
-	pitch_sp = 0.0
-	alt_sp = 1200
 	
-	thr = -0.015*(alt-1200)
-
-	if (abs(thr) > 0.98):
-		thr = (thr/abs(thr))*0.95
-
-	if (thr<0):
-		thr = 0.1
-
-	m1_P=m2_P=m3_P=m4_P=0
-	m1_R=m2_R=m3_R=m4_R=0
-	m1_Y=m2_Y=m3_Y=m4_Y=0
-
-	hdg_err=hdg-hdg_sp
-	#if(hdg_err<0):
-	#	m1_Y=0.01
-	#	m3_Y=0.01
-	#if(hdg_err>0):
-	#	m2_Y=0.01
-	#	m4_Y=0.01
-	roll_err = phi - roll_sp
-	m3_R=0.01*(roll_err)
-	if(m3_R<0):
-		m3_R=0
-	elif(m3_R>1):
-		m3_R=1
-	#m1_R=1-m1_R
-
-	pitch_err = theta - pitch_sp
-	m4_P=0.01*(pitch_err)
-	if(m4_P<0):
-		m4_P=0
-	elif(m4_P>1):
-		m4_P=1
-	#m2_P=1-m2_P
-
-	yaw_err = psi - hdg_sp
+	dt = _time - prev_time
 	
+	#pitch
+	pitch_error = pitch_setpoint - pitch
+	pitch_proportional = 'kp'*pitch_error
+	pitch_derivative = 'kd'*(pitch_error-pitch_prev_error)/(dt)
+	pitch_integral = pitch_integral + 'ki'*pitch_error*(dt)
+	if(integral>'integral_max'):
+		integral='integral_max'
+
+	sum = pitch_proportional + pitch_integral + pitch_derivative
+	if(sum<'PID_min'):
+		sum='PID_min'
+	elif(sum>'PID_max'):
+		sum='PID_max'
+	pitch_PIDsum=sum
+	pitch_prev_error = pitch_error
+	
+	#roll
+	roll_error = roll_setpoint - roll
+	roll_proportional = 'kp'*roll_error
+	roll_derivative = 'kd'*(roll_error-roll_prev_error)/(dt)
+	roll_integral = roll_integral + 'ki'*roll_error*(dt)
+	if(integral>'integral_max'):
+		integral='integral_max'
+
+	sum = roll_proportional + roll_integral + roll_derivative
+	if(sum<PID_min):
+		sum=PID_min
+	elif(sum>PID_max):
+		sum=PID_max
+	roll_PIDsum=sum
+	roll_prev_error = roll_error
+	
+	#pitch_rate
+	pitch_rate_error = pitch_PIDsum - pitchv
+	pitch_rate_proportional = 'kp'*pitch_rate_error
+	pitch_rate_derivative = 'kd'*(pitch_rate_error-pitch_rate_prev_error)/(dt)
+	pitch_rate_integral = pitch_rate_integral + 'ki'*pitch_rate_error*(dt)
+	if(integral>'integral_max'):
+		integral='integral_max'
+
+	sum = pitch_rate_proportional + pitch_rate_integral + pitch_rate_derivative
+	if(sum<PID_min):
+		sum=PID_min
+	elif(sum>PID_max):
+		sum=PID_max
+	pitch_rate_PIDsum=sum
+	pitch_rate_prev_error = pitch_rate_error
+	
+	#roll_rate
+	roll_rate_error = roll_PIDsum - rollv
+	roll_rate_proportional = 'kp'*roll_rate_error
+	roll_rate_derivative = 'kd'*(roll_rate_error-roll_rate_prev_error)/(dt)
+	roll_rate_integral = roll_rate_integral + 'ki'*roll_rate_error*(dt)
+	if(integral>'integral_max'):
+		integral='integral_max'
+
+	sum = roll_rate_proportional + roll_rate_integral + roll_rate_derivative
+	if(sum<PID_min):
+		sum=PID_min
+	elif(sum>PID_max):
+		sum=PID_max
+	roll_rate_PIDsum=sum
+	roll_rate_prev_error = roll_rate_error
+	
+	#yaw_rate
+	yaw_rate_error = yaw_rate_setpoint - yawv
+	yaw_rate_proportional = 'kp'*yaw_rate_error
+	yaw_rate_derivative = 'kd'*(yaw_rate_error-yaw_rate_prev_error)/(dt)
+	yaw_rate_integral = yaw_rate_integral + 'ki'*yaw_rate_error*(dt)
+	if(integral>'integral_max'):
+		integral='integral_max'
+
+	sum = yaw_rate_proportional + yaw_rate_integral + yaw_rate_derivative
+	if(sum<PID_min):
+		sum=PID_min
+	elif(sum>PID_max):
+		sum=PID_max
+	yaw_rate_PIDsum=sum
+	yaw_rate_prev_error = yaw_rate_error
+
+	#thrust
+	thrust_error = thrust_setpoint - alt
+	thrust_proportional = 'kp'*thrust_error
+	thrust_derivative = 'kd'*(thrust_error-thrust_prev_error)/(dt)
+	thrust_integral = thrust_integral + 'ki'*thrust_error*(dt)
+	if(integral>'integral_max'):
+		integral='integral_max'
+
+	sum = thrust_proportional + thrust_integral + thrust_derivative
+	if(sum<PID_min):
+		sum=PID_min
+	elif(sum>PID_max):
+		sum=PID_max
+	thrust_PIDsum=sum
+	thrust_prev_error = thrust_error
+
 
   #the front and rear motors spin clockwise, and the left and right motors spin counter-clockwise.
   #order: F->B->L->R
-	m1_ctrl = thr+m1_P+m1_R+m1_Y	#F
-	m2_ctrl = thr+m2_P+m2_R+m2_Y	#B
-	m3_ctrl = thr+m3_P+m3_R+m3_Y	#L
-	m4_ctrl = thr+m4_P+m4_R+m4_Y	#R
-	
-	print alt,vc,hdg_err,thr,phi
+	m1_ctrl = (sqrt(thrust.PID_sum + yaw_rate.PID_sum + pitch_rate.PID_sum))/1280	#F
+	m2_ctrl = (sqrt(thrust.PID_sum + yaw_rate.PID_sum - pitch_rate.PID_sum))/1280	#B
+	m3_ctrl = (sqrt(thrust.PID_sum - yaw_rate.PID_sum + roll_rate.PID_sum))/1280	#L
+	m4_ctrl = (sqrt(thrust.PID_sum - yaw_rate.PID_sum - roll_rate.PID_sum))/1280	#R
+	prev_t = t;
+	print (alt,vc,hdg_err,thr,phi)
 	#if sim_time>15 and sim_time<20:
 	#	tcpobj.send("set atmosphere/psiw-rad %f\n" % 1.5708)
 	#	tcpobj.send("set atmosphere/wind-mag-fps %f\n" % 10)
