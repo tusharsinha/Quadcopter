@@ -1,6 +1,3 @@
-float accel_final[3];
-float gyro_final[3];
-float magn_final[3];
 float zenith_accel[3];
 float north_magn[3];
 float zenith_gyro[3];
@@ -19,21 +16,21 @@ const float compFilt_weight = 1.0; // set weight
 const float gravity = 9.8;
 float roll_x;
 float pitch_y;
-void accel_to_zenith(float a[3])
+void accel_to_zenith(float a[3]) //get Zenith from accel data
 {
 	zenith_accel[0] = a[0];
 	zenith_accel[1] = a[1];
 	zenith_accel[2] = sqrt(gravity*gravity - (zenith_accel[0]*zenith_accel[0] + zenith_accel[1]*zenith_accel[1]));
 }
 
-void magn_to_north(float m[3])
+void magn_to_north(float m[3]) //north from mag data
 {
 	north_magn[0] = m[0];
 	north_magn[1] = m[1];
 	north_magn[2] = m[2];
 }
 
-void gyro_direction(float g[3])
+void gyro_direction(float g[3]) //north and zenith from gyro
 {
 	time_gyroPoll = millis();
 	dt = time_gyroPoll - time_prev_gyroPoll;
@@ -54,7 +51,7 @@ void gyro_direction(float g[3])
 	north_gyro[2] = north_gyro_prev[2] + dt*(g[0]*north_gyro_prev[1] - g[1]*north_gyro_prev[0]);
 }
 
-void comp_filter()
+void comp_filter() //weighted average
 { 
 	zenith[0] = compFilt_weight*zenith_accel[0] + (1 - compFilt_weight)*zenith_gyro[0];
 	zenith[1] = compFilt_weight*zenith_accel[1] + (1 - compFilt_weight)*zenith_gyro[1];
@@ -65,7 +62,7 @@ void comp_filter()
     north_avg[2] = compFilt_weight*north_magn[2] + (1 - compFilt_weight)*north_gyro[2];
 }
 
-void get_West()
+void get_West() //cross product of zenith and north
 {
 	west[0] = zenith[1]*north_avg[2] - zenith[2]*north_avg[1];
 	west[1] = zenith[2]*north_avg[0] - zenith[0]*north_avg[2];
@@ -80,20 +77,20 @@ void normalize(float v[3])
 	v[2] = v[2]/v_magnitude;
 }
 
-void correct_north()
+void correct_north() 
 {
 	north[0] = west[1]*zenith[2] - zenith[1]*west[2];
 	north[1] = west[2]*zenith[0] - zenith[2]*west[0];
 	north[2] = west[0]*zenith[1] - zenith[0]*west[1];
 }
 
-void get_Pitch()
+void get_Pitch() //final op
 {
 	pitch_y=atan(zenith[1]/sqrt(north[1]*north[1] + west[1]*west[1]));
 }
 
 
-void get_Roll()
+void get_Roll() //final op
 {
 	roll_x = atan(zenith[0]/sqrt(north[0]*north[0] + west[0]*west[0]));
 }
